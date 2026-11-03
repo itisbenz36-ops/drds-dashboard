@@ -6,7 +6,7 @@
 <title>DRDS Dashboard – สคร.10 อุบลราชธานี</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="config.js"></script>
 <style>
 :root{
   --green:#1f9d6b; --green-soft:#e6f5ee; --orange:#f08a24; --orange-soft:#fdf0e3;
@@ -133,6 +133,13 @@ body{background:radial-gradient(1200px 600px at 10% -10%,#fff4ea 0,transparent 6
 tbody tr{animation:rowin .45s ease both}
 @keyframes rowin{from{opacity:0;transform:translateY(6px)}}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin:-14px 0 18px}
+.sync i{width:8px;height:8px;border-radius:50%;background:#c9ced6;display:inline-block}
+.sync.live i{background:var(--green);animation:pulse 2s infinite}
+.sync.err{color:#d0453a}.sync.err i{background:#d0453a}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(31,157,107,.5)}70%{box-shadow:0 0 0 7px rgba(31,157,107,0)}100%{box-shadow:0 0 0 0 rgba(31,157,107,0)}}
+a.linkbtn{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -145,6 +152,7 @@ tbody tr{animation:rowin .45s ease both}
     </div>
     <select id="group" aria-label="เลือกกลุ่มงาน"></select>
   </header>
+  <div class="sync" id="sync"><i></i><span id="syncTxt">กำลังโหลดข้อมูล…</span></div>
 
   <section class="hero reveal">
     <div class="hero-main">
@@ -198,7 +206,7 @@ tbody tr{animation:rowin .45s ease both}
 
   <footer>
     <span>ข้อมูลจาก: <span id="src"></span></span>
-    <span class="msg" id="msg"></span>
+    <a class="linkbtn" href="admin.html">สำหรับผู้ดูแลระบบ</a>
   </footer>
 </div>
 
@@ -318,47 +326,37 @@ document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', ()
 }));
 $('q').addEventListener('input', (e) => { S.q = e.target.value.trim().toLowerCase(); render(); });
 
-// ---- Excel upload ----
-const GROUPS = {'ผอ-รองฯ':'ผู้บริหาร (ผอ./รองฯ)','บริหาร':'กลุ่มบริหารทั่วไป','องค์กร':'กลุ่มพัฒนาองค์กร','ยุทธ':'กลุ่มยุทธศาสตร์ฯ','วิจัย':'กลุ่มพัฒนานวัตกรรมและวิจัย','สื่อสาร':'กลุ่มสื่อสารความเสี่ยง','แลป':'กลุ่มห้องปฏิบัติการ','ระบาด':'กลุ่มระบาดวิทยา','โรคติดต่อ':'กลุ่มโรคติดต่อ','โรคติดต่อเรื้อรัง':'กลุ่มโรคติดต่อเรื้อรัง','โรคไม่ติดต่อ':'กลุ่มโรคไม่ติดต่อ','EnvOcc':'กลุ่มโรคจากการประกอบอาชีพฯ','ก.แมลง-ศตม.10.1':'กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1','10.2':'ศตม.10.2','กลุ่มด่าน':'กลุ่มด่านควบคุมโรคฯ','ศ.เวช':'ศูนย์เวชศาสตร์ป้องกัน'};
-const clean = (s) => (s == null ? '' : String(s).replace(/\s+/g, ' ').trim());
-function parseWorkbook(wb) {
-  const out = [];
-  wb.SheetNames.forEach((sn) => {
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: true });
-    const head = (rows[0] || []).map(clean).join('|');
-    if (!/ชื่อ/.test(head) || !/ลงทะเบียน/.test(head)) return;
-    const group = GROUPS[sn.trim()] || sn.trim();
-    for (let i = 1; i < rows.length; i++) {
-      const [no, name, pos, lvl, reg, rec] = rows[i];
-      const nm = clean(name);
-      if (!(typeof no === 'number' || /^\d+$/.test(clean(no))) || !nm) continue;
-      const r = clean(reg), c = clean(rec);
-      out.push({ id: 'P' + (out.length + 1), group, name: nm, position: clean(pos), level: clean(lvl) || 'ไม่ระบุ',
-        reg_status: r && !r.includes('ยังไม่') ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน',
-        rec_status: c && !c.includes('ยังไม่') ? 'บันทึกแล้ว' : 'ยังไม่บันทึก' });
-    }
-  });
-  return out;
+// ---- live data from Google Sheet ----
+const CFG = window.DRDS_CONFIG || {};
+const fmtT = (d) => { try { return new Date(d).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return ''; } };
+const sync = (state, t) => { const el = $('sync'); el.className = 'sync ' + (state || ''); $('syncTxt').textContent = t; };
+const norm = (rows) => rows.filter((r) => r && r.name).map((r, i) => ({
+  id: String(r.id || i), group: String(r.group || 'ไม่ระบุกลุ่มงาน'), name: String(r.name), position: String(r.position || ''),
+  level: String(r.level || 'ไม่ระบุ'), reg_status: r.reg_status === 'ลงทะเบียนแล้ว' ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน',
+  rec_status: r.rec_status === 'บันทึกแล้ว' ? 'บันทึกแล้ว' : 'ยังไม่บันทึก' }));
+let lastSig = '';
+async function load(first) {
+  if (!CFG.API_URL) { sync('', 'แสดงข้อมูลชุดสำรอง (ยังไม่ได้ตั้งค่า Google Sheet ใน config.js)'); if (first) render(); return; }
+  try {
+    const res = await fetch(CFG.API_URL + (CFG.API_URL.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+    const j = await res.json();
+    if (!j.ok || !Array.isArray(j.rows)) throw new Error(j.error || 'bad');
+    const rows = norm(j.rows);
+    const sig = JSON.stringify(rows);
+    S.src = 'Google Sheet' + (j.updatedAt ? ' · แก้ไขล่าสุด ' + fmtT(j.updatedAt) : '');
+    sync('live', 'ข้อมูลล่าสุดจาก Google Sheet' + (j.updatedAt ? ' · แก้ไข ' + fmtT(j.updatedAt) : ''));
+    if (rows.length && sig !== lastSig) { lastSig = sig; S.rows = rows; if (S.group && !rows.some((r) => r.group === S.group)) S.group = ''; render(); }
+    else if (first) render();
+  } catch (e) {
+    sync('err', 'เชื่อมต่อ Google Sheet ไม่ได้ · แสดงข้อมูลชุดสำรอง');
+    if (first) render();
+  }
 }
-const msg = (t, cls) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); };
 S.src = 'ข้อมูลชุดสำรองในหน้าเว็บ';
 render();
-// Load the latest data from drds.xlsx in the same folder (GitHub Pages)
-(async () => {
-  try {
-    if (typeof XLSX === 'undefined') throw new Error('no xlsx');
-    const res = await fetch('drds.xlsx?v=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const rows = parseWorkbook(XLSX.read(await res.arrayBuffer(), { type: 'array' }));
-    if (!rows.length) throw new Error('empty');
-    const lm = res.headers.get('last-modified');
-    const when = lm ? new Date(lm).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    Object.assign(S, { rows, src: 'ไฟล์ drds.xlsx' + (when ? ' · อัปเดต ' + when : '') });
-    render();
-  } catch (e) {
-    msg('อ่านไฟล์ drds.xlsx ไม่ได้ จึงแสดงข้อมูลชุดสำรอง', 'err');
-  }
-})();
+load(true);
+setInterval(() => { if (!document.hidden) load(false); }, Math.max(20, CFG.REFRESH_SECONDS || 60) * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(false); });
 </script>
 </body>
 </html>

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>ผู้ดูแลระบบ – DRDS Dashboard สคร.10</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--green:#1f9d6b;--green-soft:#e6f5ee;--orange:#f08a24;--orange-soft:#fdf0e3;--red:#d0453a;--ink:#1f2328;--muted:#7a828c;--line:#eceef1;--bg:#f7f8f9}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding:24px clamp(14px,3vw,32px) 60px}
+.btn{font-size:14px;border-radius:10px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);display:inline-flex;align-items:center;gap:6px;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:#d7dbe0}
+.btn.pri{background:var(--green);border-color:var(--green);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn:disabled{opacity:.6;cursor:default}
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.lcard{background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;width:min(400px,100%);box-shadow:0 24px 60px -30px rgba(0,0,0,.25)}
+.lock{width:52px;height:52px;border-radius:14px;background:var(--green-soft);display:grid;place-items:center;margin-bottom:16px}
+.lcard h1{font-size:22px;margin:0 0 4px}
+.lcard p{color:var(--muted);font-size:14px;margin:0 0 20px;line-height:1.6}
+.fld{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+.fld input,.fld select{font-size:15px;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+.fld input:focus,.fld select:focus,.search:focus{outline:2px solid #bfe6d3;border-color:var(--green)}
+.err{color:var(--red);font-size:13px;min-height:1.2em;margin:4px 0 10px}
+.note{background:var(--orange-soft);color:#8a4b0c;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.7;margin-bottom:16px}
+/* app */
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
+.top h1{font-size:22px;margin:0}
+.top .sub{font-size:13px;color:var(--muted)}
+.top .r{display:flex;gap:8px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat .n{font-size:13px;color:var(--muted)}
+.stat .v{font-size:26px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:13px;color:var(--muted);font-weight:400;margin-left:6px}
+.stat.g .v{color:var(--green)}.stat.o .v{color:var(--orange)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.tools .sp{flex:1}
+.search{border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:200px;flex:1;max-width:300px}
+.tools select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;max-width:240px}
+.chip{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip .c{opacity:.65;margin-left:4px}
+.tbox{overflow:auto;max-height:calc(100vh - 300px);min-height:300px;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{position:sticky;top:0;background:#fff;text-align:left;font-weight:500;font-size:13px;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap;z-index:1}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.m{color:var(--muted);font-size:13px}
+tr.busy{opacity:.55}
+tr.flash{animation:flash 1.4s ease}
+@keyframes flash{from{background:#e6f5ee}to{background:transparent}}
+.tg{display:inline-flex;align-items:center;gap:8px;border:none;background:none;cursor:pointer;padding:2px;font-size:13px;color:var(--ink);white-space:nowrap}
+.tg .sw{width:38px;height:22px;border-radius:99px;background:#dfe3e8;position:relative;transition:background .2s;flex:none}
+.tg .sw::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.tg.on .sw{background:var(--green)}
+.tg.on .sw::after{transform:translateX(16px)}
+.tg.on .lb{color:var(--green)} .tg.off .lb{color:var(--orange)}
+.tg.na{opacity:.45}
+.act{white-space:nowrap;text-align:right}
+.ib{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px}
+.ib.del{color:var(--red)}
+.ib.yes{background:var(--red);border-color:var(--red);color:#fff}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+@media(max-width:760px){.hide-sm{display:none}}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(20,24,30,.35);display:none;align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:50;overflow:auto}
+.modal.open{display:flex}
+.sheet{background:#fff;border-radius:18px;width:min(520px,100%);padding:24px;box-shadow:0 30px 80px -20px rgba(0,0,0,.35)}
+.sheet h3{margin:0 0 16px;font-size:18px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;border:none;background:#fff;padding:9px 6px;cursor:pointer;font-size:14px}
+.seg button.on.g{background:var(--green);color:#fff}.seg button.on.o{background:var(--orange);color:#fff}
+.sheet-f{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+/* toast */
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;border-radius:12px;padding:10px 16px;font-size:14px;opacity:0;transition:.25s;z-index:60;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red)}
+.saving{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ===== Login ===== -->
+<section class="login" id="loginView">
+  <form class="lcard" id="loginForm" novalidate>
+    <div class="lock"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1f9d6b" stroke-width="2" stroke-linecap="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></div>
+    <h1>ผู้ดูแลระบบ DRDS</h1>
+    <p>สำหรับเพิ่ม ลบ แก้ไขข้อมูลบุคลากร และอัปเดตสถานะการลงทะเบียน</p>
+    <div class="note" id="setupNote" hidden>ยังไม่ได้ตั้งค่าการเชื่อมต่อ Google Sheet — ใส่ Web app URL ในไฟล์ <b>config.js</b> ก่อน (ดูวิธีใน README)</div>
+    <label class="fld">รหัสผ่านผู้ดูแล<input id="pw" type="password" autocomplete="current-password" autofocus></label>
+    <div class="err" id="loginErr"></div>
+    <button class="btn pri" id="loginBtn" type="submit" style="width:100%;justify-content:center;padding:11px">เข้าสู่ระบบ</button>
+    <p style="margin:16px 0 0;text-align:center"><a href="./" style="color:var(--muted);font-size:13px">← กลับไปหน้า dashboard</a></p>
+  </form>
+</section>
+
+<!-- ===== Admin app ===== -->
+<div class="wrap" id="appView" hidden>
+  <div class="top">
+    <div>
+      <h1>จัดการข้อมูลบุคลากร DRDS</h1>
+      <div class="sub">สคร.10 อุบลราชธานี · ข้อมูลเก็บใน Google Sheet · <span id="upd"></span> <span class="saving" id="saving"></span></div>
+    </div>
+    <div class="r">
+      <a class="btn" href="./" target="_blank" rel="noopener">ดู dashboard ↗</a>
+      <button class="btn" id="logoutBtn">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="n">บุคลากรสายวิชาการ</div><div class="v" id="sTotal">–</div></div>
+    <div class="stat g"><div class="n">ลงทะเบียนแล้ว</div><div class="v" id="sReg">–</div></div>
+    <div class="stat g"><div class="n">บันทึกผลงานแล้ว</div><div class="v" id="sRec">–</div></div>
+    <div class="stat o"><div class="n">ยังไม่ลงทะเบียน</div><div class="v" id="sNot">–</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="tools">
+      <button class="btn pri" id="addBtn">＋ เพิ่มบุคลากร</button>
+      <label class="btn">⤒ นำเข้าจาก Excel<input type="file" id="file" accept=".xlsx,.xls" hidden></label>
+      <button class="btn" id="dlBtn">⤓ ดาวน์โหลด Excel</button>
+      <span class="sp"></span>
+      <button class="btn" id="reloadBtn" title="โหลดข้อมูลล่าสุด">↻ รีเฟรช</button>
+    </div>
+    <div class="note" id="importBar" hidden></div>
+    <div class="tools">
+      <select id="gsel" aria-label="กลุ่มงาน"></select>
+      <button class="chip on" data-st="all">ทั้งหมด<span class="c" id="cAll"></span></button>
+      <button class="chip" data-st="notreg">ยังไม่ลงทะเบียน<span class="c" id="cNot"></span></button>
+      <button class="chip" data-st="regonly">ลงทะเบียน แต่ยังไม่บันทึก<span class="c" id="cRegOnly"></span></button>
+      <button class="chip" data-st="rec">บันทึกผลงานแล้ว<span class="c" id="cRec"></span></button>
+      <input class="search" id="q" type="search" placeholder="ค้นหาชื่อ ตำแหน่ง">
+    </div>
+    <div class="tbox">
+      <table>
+        <thead><tr><th>ชื่อ - สกุล</th><th class="hide-sm">ตำแหน่ง / ระดับ</th><th class="hide-sm">กลุ่มงาน</th><th>ลงทะเบียน</th><th>บันทึกผลงาน</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>ไม่พบรายชื่อ</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Add / edit form ===== -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <form class="sheet" id="pform" novalidate>
+    <h3 id="mTitle">เพิ่มบุคลากร</h3>
+    <label class="fld">ชื่อ - สกุล<input id="fName" autocomplete="off"></label>
+    <label class="fld">ตำแหน่ง<input id="fPos" autocomplete="off" placeholder="เช่น นักวิชาการสาธารณสุข"></label>
+    <div class="row2">
+      <label class="fld">ระดับ<select id="fLevel"></select></label>
+      <label class="fld">กลุ่มงาน<select id="fGroup"></select></label>
+    </div>
+    <label class="fld" id="fNewGroupWrap" hidden>ชื่อกลุ่มงานใหม่<input id="fNewGroup" autocomplete="off"></label>
+    <div class="fld">ลงทะเบียนในระบบ DRDS<div class="seg" id="segReg"><button type="button" data-v="1" class="g">ลงทะเบียนแล้ว</button><button type="button" data-v="0" class="o">ยังไม่ลงทะเบียน</button></div></div>
+    <div class="fld">บันทึกผลงานวิจัย<div class="seg" id="segRec"><button type="button" data-v="1" class="g">บันทึกแล้ว</button><button type="button" data-v="0" class="o">ยังไม่บันทึก</button></div></div>
+    <div class="err" id="fErr"></div>
+    <div class="sheet-f"><button type="button" class="btn" id="mCancel">ยกเลิก</button><button type="submit" class="btn pri" id="mSave">บันทึก</button></div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const CFG = window.DRDS_CONFIG || {};
+const REG = 'ลงทะเบียนแล้ว', NOREG = 'ยังไม่ลงทะเบียน', REC = 'บันทึกแล้ว', NOREC = 'ยังไม่บันทึก';
+const LEVELS = ['ปฏิบัติการ', 'ชำนาญการ', 'ชำนาญการพิเศษ', 'เชี่ยวชาญ', 'สูง', 'ไม่ระบุ'];
+const GROUPS = {'ผอ-รองฯ':'ผู้บริหาร (ผอ./รองฯ)','บริหาร':'กลุ่มบริหารทั่วไป','องค์กร':'กลุ่มพัฒนาองค์กร','ยุทธ':'กลุ่มยุทธศาสตร์ฯ','วิจัย':'กลุ่มพัฒนานวัตกรรมและวิจัย','สื่อสาร':'กลุ่มสื่อสารความเสี่ยง','แลป':'กลุ่มห้องปฏิบัติการ','ระบาด':'กลุ่มระบาดวิทยา','โรคติดต่อ':'กลุ่มโรคติดต่อ','โรคติดต่อเรื้อรัง':'กลุ่มโรคติดต่อเรื้อรัง','โรคไม่ติดต่อ':'กลุ่มโรคไม่ติดต่อ','EnvOcc':'กลุ่มโรคจากการประกอบอาชีพฯ','ก.แมลง-ศตม.10.1':'กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1','10.2':'ศตม.10.2','กลุ่มด่าน':'กลุ่มด่านควบคุมโรคฯ','ศ.เวช':'ศูนย์เวชศาสตร์ป้องกัน'};
+const S = { rows: [], group: '', st: 'all', q: '', pw: '', updatedAt: '', flash: null, confirmDel: null, busy: new Set() };
+const $ = (id) => document.getElementById(id);
+const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const clean = (s) => (s == null ? '' : String(s).replace(/\s+/g, ' ').trim());
+const isReg = (r) => r.reg_status === REG, isRec = (r) => r.rec_status === REC;
+const fmtT = (d) => { try { return new Date(d).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }); } catch (_) { return ''; } };
+const ss = { get() { try { return sessionStorage.getItem('drds-pw') || ''; } catch (_) { return ''; } }, set(v) { try { sessionStorage.setItem('drds-pw', v); } catch (_) {} }, del() { try { sessionStorage.removeItem('drds-pw'); } catch (_) {} } };
+let toastT;
+function toast(t, err) { const el = $('toast'); el.textContent = t; el.className = 'toast show' + (err ? ' err' : ''); clearTimeout(toastT); toastT = setTimeout(() => (el.className = 'toast'), err ? 4500 : 2200); }
+const ERR = { unauthorized: 'รหัสผ่านไม่ถูกต้อง', no_password_set: 'ยังไม่ได้ตั้งรหัสผ่านใน Apps Script (Script Properties → ADMIN_PASSWORD)', not_found: 'ไม่พบรายชื่อนี้ใน Google Sheet (อาจถูกลบไปแล้ว) · กดรีเฟรช', empty: 'ไม่มีข้อมูลให้นำเข้า' };
+
+// ---------- API ----------
+async function call(action, extra) {
+  if (!CFG.API_URL) throw new Error('ยังไม่ได้ตั้งค่า API_URL ใน config.js');
+  const res = await fetch(CFG.API_URL, { method: 'POST', body: JSON.stringify({ action, password: S.pw, ...extra }) });
+  const j = await res.json();
+  if (!j.ok) throw Object.assign(new Error(ERR[j.error] || j.error || 'เกิดข้อผิดพลาด'), { code: j.error });
+  if (Array.isArray(j.rows)) { S.rows = j.rows; S.updatedAt = j.updatedAt; }
+  return j;
+}
+let pending = 0;
+const busy = (d) => { pending += d; $('saving').textContent = pending > 0 ? '· กำลังบันทึก…' : ''; };
+async function mutate(action, extra, okText, rowId) {
+  if (rowId) S.busy.add(rowId); busy(1); render();
+  try { await call(action, extra); S.flash = rowId || null; toast(okText); }
+  catch (e) { if (e.code === 'unauthorized') return logout('รหัสผ่านถูกเปลี่ยน กรุณาเข้าสู่ระบบใหม่'); toast('บันทึกไม่สำเร็จ: ' + e.message, true); }
+  finally { if (rowId) S.busy.delete(rowId); busy(-1); render(); }
+}
+
+// ---------- login ----------
+async function login(pw, silent) {
+  S.pw = pw; $('loginBtn').disabled = true; $('loginErr').textContent = silent ? '' : 'กำลังตรวจสอบ…';
+  try {
+    await call('login'); ss.set(pw);
+    $('loginView').hidden = true; $('appView').hidden = false; render();
+  } catch (e) { S.pw = ''; ss.del(); $('loginErr').textContent = silent ? '' : e.message; }
+  $('loginBtn').disabled = false;
+}
+function logout(m) { ss.del(); S.pw = ''; S.rows = []; $('appView').hidden = true; $('loginView').hidden = false; $('pw').value = ''; $('loginErr').textContent = m || ''; }
+$('loginForm').addEventListener('submit', (e) => { e.preventDefault(); const pw = $('pw').value; if (!pw) { $('loginErr').textContent = 'กรุณาใส่รหัสผ่าน'; return; } login(pw); });
+$('logoutBtn').addEventListener('click', () => logout());
+$('setupNote').hidden = !!CFG.API_URL;
+
+// ---------- render ----------
+function groupsList() { const o = []; S.rows.forEach((r) => { if (!o.includes(r.group)) o.push(r.group); }); return o; }
+function render() {
+  const all = S.rows;
+  const scoped = S.group ? all.filter((r) => r.group === S.group) : all;
+  const reg = scoped.filter(isReg).length, rec = scoped.filter(isRec).length, tot = scoped.length;
+  const pct = (n) => (tot ? ' ' + (Math.round((1000 * n) / tot) / 10) + '%' : '');
+  $('sTotal').textContent = tot; $('sReg').replaceChildren(String(reg), mk('small', null, pct(reg)));
+  $('sRec').replaceChildren(String(rec), mk('small', null, pct(rec))); $('sNot').textContent = tot - reg;
+  $('upd').textContent = S.updatedAt ? 'แก้ไขล่าสุด ' + fmtT(S.updatedAt) : 'ยังไม่มีข้อมูลใน Google Sheet';
+  $('importBar').hidden = all.length > 0;
+  if (!all.length) $('importBar').textContent = 'Google Sheet ยังว่างอยู่ · กด "นำเข้าจาก Excel" แล้วเลือกไฟล์ DRDS เดิม (drds.xlsx) เพื่อเริ่มต้นข้อมูล';
+  // group select
+  const gs = groupsList(); const sel = $('gsel');
+  sel.replaceChildren(new Option('ทุกกลุ่มงาน', ''), ...gs.map((g) => new Option(g, g))); sel.value = gs.includes(S.group) ? S.group : (S.group = '');
+  $('cAll').textContent = tot; $('cNot').textContent = tot - reg; $('cRegOnly').textContent = scoped.filter((r) => isReg(r) && !isRec(r)).length; $('cRec').textContent = rec;
+  // rows
+  let ps = scoped;
+  if (S.st === 'notreg') ps = ps.filter((r) => !isReg(r));
+  if (S.st === 'regonly') ps = ps.filter((r) => isReg(r) && !isRec(r));
+  if (S.st === 'rec') ps = ps.filter(isRec);
+  if (S.q) ps = ps.filter((r) => (r.name + ' ' + r.position + ' ' + r.group + ' ' + r.level).toLowerCase().includes(S.q));
+  const tb = $('tbody'); tb.replaceChildren();
+  ps.forEach((r) => {
+    const tr = mk('tr'); tr.dataset.id = r.id;
+    if (S.busy.has(r.id)) tr.classList.add('busy'); if (S.flash === r.id) tr.classList.add('flash');
+    const tgl = (kind, on, yes, no, na) => { const b = mk('button', 'tg ' + (on ? 'on' : 'off') + (na ? ' na' : '')); b.type = 'button'; b.dataset.tg = kind; b.title = on ? 'คลิกเพื่อเปลี่ยนเป็น "' + no + '"' : 'คลิกเพื่อเปลี่ยนเป็น "' + yes + '"'; b.append(mk('span', 'sw'), mk('span', 'lb', on ? yes : no)); const td = mk('td'); td.append(b); return td; };
+    const pos = mk('td', 'm hide-sm', r.position + (r.level && r.level !== 'ไม่ระบุ' ? ' · ' + r.level : ''));
+    const act = mk('td', 'act');
+    if (S.confirmDel === r.id) act.append(mk('span', null, 'ลบ? '), Object.assign(mk('button', 'ib yes', 'ลบ'), { type: 'button' }), ' ', Object.assign(mk('button', 'ib no', 'ไม่'), { type: 'button' }));
+    else act.append(Object.assign(mk('button', 'ib ed', 'แก้ไข'), { type: 'button' }), ' ', Object.assign(mk('button', 'ib del', 'ลบ'), { type: 'button' }));
+    tr.append(mk('td', null, r.name), pos, mk('td', 'm hide-sm', r.group), tgl('reg', isReg(r), REG, NOREG, false), tgl('rec', isRec(r), REC, NOREC, !isReg(r)), act);
+    tb.append(tr);
+  });
+  $('empty').hidden = ps.length > 0;
+  S.flash = null;
+}
+
+// ---------- filters ----------
+$('gsel').addEventListener('change', (e) => { S.group = e.target.value; render(); });
+document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => { S.st = c.dataset.st; document.querySelectorAll('.chip').forEach((o) => o.classList.toggle('on', o === c)); render(); }));
+$('q').addEventListener('input', (e) => { S.q = e.target.value.trim().toLowerCase(); render(); });
+$('reloadBtn').addEventListener('click', async () => { busy(1); try { await call('login'); toast('โหลดข้อมูลล่าสุดแล้ว'); } catch (e) { toast(e.message, true); } busy(-1); render(); });
+
+// ---------- row actions ----------
+$('tbody').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+  const r = S.rows.find((x) => x.id === tr.dataset.id); if (!r || S.busy.has(r.id)) return;
+  const tg = e.target.closest('[data-tg]');
+  if (tg) {
+    const n = { ...r };
+    if (tg.dataset.tg === 'reg') { n.reg_status = isReg(r) ? NOREG : REG; if (n.reg_status === NOREG) n.rec_status = NOREC; }
+    else { n.rec_status = isRec(r) ? NOREC : REC; if (n.rec_status === REC) n.reg_status = REG; }
+    Object.assign(r, n); // optimistic
+    mutate('update', { row: n }, r.name + ' → ' + (tg.dataset.tg === 'reg' ? n.reg_status : n.rec_status), r.id);
+    return;
+  }
+  const b = e.target.closest('button.ib'); if (!b) return;
+  if (b.classList.contains('yes')) { S.confirmDel = null; S.rows = S.rows.filter((x) => x.id !== r.id); mutate('delete', { id: r.id }, 'ลบ ' + r.name + ' แล้ว'); return; }
+  if (b.classList.contains('no')) { S.confirmDel = null; render(); return; }
+  if (b.classList.contains('del')) { S.confirmDel = r.id; render(); return; }
+  if (b.classList.contains('ed')) openForm(r);
+});
+
+// ---------- add / edit form ----------
+let formRow = null, fReg = false, fRec = false;
+const segSet = (id, v) => $(id).querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b.dataset.v === '1') === v));
+function openForm(r) {
+  formRow = r || null;
+  $('mTitle').textContent = r ? 'แก้ไขข้อมูลบุคลากร' : 'เพิ่มบุคลากร';
+  $('fName').value = r ? r.name : ''; $('fPos').value = r ? r.position : '';
+  $('fLevel').replaceChildren(...LEVELS.map((l) => new Option(l, l))); $('fLevel').value = r && LEVELS.includes(r.level) ? r.level : 'ไม่ระบุ';
+  const gs = groupsList(); $('fGroup').replaceChildren(...gs.map((g) => new Option(g, g)), new Option('＋ กลุ่มงานใหม่…', '__new'));
+  $('fGroup').value = r ? r.group : (S.group || gs[0] || '__new');
+  $('fNewGroupWrap').hidden = $('fGroup').value !== '__new'; $('fNewGroup').value = '';
+  fReg = r ? isReg(r) : false; fRec = r ? isRec(r) : false; segSet('segReg', fReg); segSet('segRec', fRec);
+  $('fErr').textContent = ''; $('modal').classList.add('open'); setTimeout(() => $('fName').focus(), 50);
+}
+const closeForm = () => { $('modal').classList.remove('open'); formRow = null; };
+$('addBtn').addEventListener('click', () => openForm(null));
+$('mCancel').addEventListener('click', closeForm);
+$('modal').addEventListener('click', (e) => { if (e.target === $('modal')) closeForm(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeForm(); });
+$('fGroup').addEventListener('change', () => { $('fNewGroupWrap').hidden = $('fGroup').value !== '__new'; });
+$('segReg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; fReg = b.dataset.v === '1'; if (!fReg) fRec = false; segSet('segReg', fReg); segSet('segRec', fRec); });
+$('segRec').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; fRec = b.dataset.v === '1'; if (fRec) fReg = true; segSet('segReg', fReg); segSet('segRec', fRec); });
+$('pform').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = clean($('fName').value); if (!name) { $('fErr').textContent = 'กรุณากรอกชื่อ - สกุล'; return; }
+  let group = $('fGroup').value; if (group === '__new') group = clean($('fNewGroup').value);
+  if (!group) { $('fErr').textContent = 'กรุณาระบุกลุ่มงาน'; return; }
+  const row = { name, position: clean($('fPos').value), level: $('fLevel').value, group, reg_status: fReg ? REG : NOREG, rec_status: fRec ? REC : NOREC };
+  if (formRow) { row.id = formRow.id; Object.assign(formRow, row); closeForm(); mutate('update', { row }, 'บันทึกการแก้ไข ' + name + ' แล้ว', row.id); }
+  else { row.id = 'N' + Date.now().toString(36); S.rows.push(row); closeForm(); mutate('add', { row }, 'เพิ่ม ' + name + ' แล้ว', row.id); }
+});
+
+// ---------- Excel import / export ----------
+function parseWorkbook(wb) {
+  const out = [];
+  wb.SheetNames.forEach((sn) => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: true });
+    const head = (rows[0] || []).map(clean).join('|');
+    if (!/ชื่อ/.test(head) || !/ลงทะเบียน/.test(head)) return;
+    const group = GROUPS[sn.trim()] || sn.trim();
+    for (let i = 1; i < rows.length; i++) {
+      const [no, name, pos, lvl, reg, rec] = rows[i];
+      const nm = clean(name);
+      if (!(typeof no === 'number' || /^\d+$/.test(clean(no))) || !nm) continue;
+      const r = clean(reg), c = clean(rec);
+      out.push({ group, name: nm, position: clean(pos), level: clean(lvl) || 'ไม่ระบุ',
+        reg_status: r && !r.includes('ยังไม่') ? REG : NOREG, rec_status: c && !c.includes('ยังไม่') ? REC : NOREC });
+    }
+  });
+  return out;
+}
+let importRows = null, importName = '';
+$('file').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    if (typeof XLSX === 'undefined') throw new Error('โหลดตัวอ่าน Excel ไม่สำเร็จ');
+    importRows = parseWorkbook(XLSX.read(await f.arrayBuffer(), { type: 'array' })); importName = f.name;
+    if (!importRows.length) throw new Error('ไม่พบรายชื่อในไฟล์ (ตรวจหัวตารางแต่ละ sheet)');
+    const bar = $('importBar'); bar.hidden = false; bar.replaceChildren(
+      `พบ ${importRows.length} รายชื่อใน ${f.name} · การนำเข้าจะ`, mk('b', null, 'แทนที่ข้อมูลทั้งหมด'), ` ใน Google Sheet (ตอนนี้มี ${S.rows.length} รายชื่อ)  `,
+      Object.assign(mk('button', 'btn danger', 'ยืนยันนำเข้า'), { type: 'button', id: 'impYes' }), ' ', Object.assign(mk('button', 'btn', 'ยกเลิก'), { type: 'button', id: 'impNo' }));
+    $('impYes').onclick = async () => { const rows = importRows; importRows = null; await mutate('replaceAll', { rows, source: importName }, `นำเข้า ${rows.length} รายชื่อแล้ว`); };
+    $('impNo').onclick = () => { importRows = null; render(); };
+  } catch (err) { toast(err.message, true); }
+});
+const SHEET_OF = Object.fromEntries(Object.entries(GROUPS).map(([s, g]) => [g, s]));
+$('dlBtn').addEventListener('click', () => {
+  try {
+    const wb = XLSX.utils.book_new(); const used = new Set(['สรุป']); const m = {}; const gs = [];
+    S.rows.forEach((r) => { if (!m[r.group]) { m[r.group] = []; gs.push(r.group); } m[r.group].push(r); });
+    const sum = [[null, 'บุคลากรสายวิชาการ', 'ลงทะเบียนในระบบ', 'บันทึกผลงาน']];
+    const sheets = gs.map((g) => {
+      const rs = m[g]; sum.push([SHEET_OF[g] || g, rs.length, rs.filter(isReg).length, rs.filter(isRec).length]);
+      const aoa = [['ลำดับที่', 'ชื่อ - สกุล', 'ตำแหน่ง', 'ระดับ', 'ลงทะเบียน', 'บันทึกผลงาน']];
+      rs.forEach((r, i) => aoa.push([i + 1, r.name, r.position, r.level === 'ไม่ระบุ' ? null : r.level, r.reg_status, r.rec_status]));
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 8 }, { wch: 32 }, { wch: 40 }, { wch: 14 }, { wch: 16 }, { wch: 14 }];
+      let n = String(SHEET_OF[g] || g).replace(/[\[\]:*?\/\\]/g, '-').slice(0, 31), k = 2, b = n; while (used.has(n)) n = b.slice(0, 28) + '-' + k++; used.add(n);
+      return [n, ws];
+    });
+    sum.push([], ['รวม', S.rows.length, S.rows.filter(isReg).length, S.rows.filter(isRec).length]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sum), 'สรุป');
+    sheets.forEach(([n, ws]) => XLSX.utils.book_append_sheet(wb, ws, n));
+    XLSX.writeFile(wb, 'drds_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  } catch (e) { toast('ดาวน์โหลดไม่สำเร็จ', true); }
+});
+
+// auto-login within the same browser tab session
+const saved = ss.get(); if (saved && CFG.API_URL) login(saved, true);
+</script>
+</body>
+</html>
