@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRDS Dashboard – สคร.10 อุบลราชธานี</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --green:#1f9d6b; --green-soft:#e6f5ee; --orange:#f08a24; --orange-soft:#fdf0e3;
+  --ink:#1f2328; --muted:#7a828c; --line:#eceef1; --bg:#ffffff; --track:#f2f3f5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Thai',system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:clamp(18px,4vw,48px) clamp(16px,4vw,40px) 40px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px 24px;margin-bottom:28px}
+.eyebrow{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:clamp(22px,3vw,28px);font-weight:600;margin:4px 0 0;line-height:1.35}
+select{font:inherit;font-size:14px;padding:8px 34px 8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237a828c' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;appearance:none;color:var(--ink);max-width:100%;cursor:pointer}
+/* hero */
+.hero{border:1px solid var(--line);border-radius:18px;padding:clamp(20px,3vw,32px);margin-bottom:18px}
+.hero-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-bottom:18px}
+.hero-label{font-size:15px;color:var(--muted);width:100%}
+.hero-pct{font-size:clamp(56px,9vw,84px);font-weight:600;line-height:1;color:var(--green);letter-spacing:-.02em}
+.hero-pct small{font-size:.45em;font-weight:500;margin-left:2px}
+.hero-sub{font-size:16px;color:var(--ink)}
+.hero-sub b{font-weight:600}
+.hero-sub .left{color:var(--orange);font-weight:600}
+.bar{position:relative;height:16px;background:var(--orange-soft);border-radius:99px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--green);border-radius:99px;transition:width .6s ease}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:6px}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+@media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{border:1px solid var(--line);border-radius:16px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line)}
+.kpi.g::before{background:var(--green)} .kpi.o::before{background:var(--orange)}
+.kpi .n{font-size:13px;color:var(--muted)}
+.kpi .v{font-size:clamp(30px,4vw,38px);font-weight:600;line-height:1.15;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.kpi.g .v{color:var(--green)} .kpi.o .v{color:var(--orange)}
+.kpi .v span{font-size:15px;font-weight:400;color:var(--muted);margin-left:4px}
+.kpi .s{font-size:13px;color:var(--muted)}
+/* cards */
+.card{border:1px solid var(--line);border-radius:18px;padding:clamp(18px,2.6vw,28px);margin-bottom:18px}
+.card-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px;margin-bottom:16px}
+h2{font-size:18px;font-weight:600;margin:0}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot.g{background:var(--green)} .dot.o{background:var(--orange)}
+/* groups */
+.grows{display:flex;flex-direction:column}
+.grow{display:grid;grid-template-columns:minmax(150px,240px) 1fr 132px;align-items:center;gap:14px;padding:9px 10px;margin:0 -10px;border-radius:10px;cursor:pointer}
+.grow:hover{background:#fafafb}
+.grow.sel{background:var(--green-soft)}
+.grow .nm{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow .bar{height:10px}
+.grow .val{text-align:right;font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.grow .val b{font-weight:600}
+.grow .val.full b{color:var(--green)}
+.grow .val small{color:var(--muted);margin-left:6px;font-size:12px}
+.grow .rec{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-6px}
+@media(max-width:640px){.grow{grid-template-columns:1fr auto}.grow .bar{grid-column:1/3;grid-row:2}.grow .rec{grid-column:1/3;grid-row:3}}
+.hint{font-size:13px;color:var(--muted);margin:14px 0 0}
+/* people */
+.tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.chip{font:inherit;font-size:13px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:99px;padding:6px 14px;cursor:pointer}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+input[type=search]{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:200px;flex:1;max-width:320px}
+.count{margin-left:auto;font-size:13px;color:var(--muted)}
+.tbox{max-height:520px;overflow:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{position:sticky;top:0;background:#fff;text-align:left;font-weight:500;font-size:13px;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.pos{color:var(--muted);font-size:13px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.st.ok{color:var(--green)} .st.no{color:var(--orange)} .st.na{color:#b4bac2}
+@media(max-width:640px){.hide-sm{display:none}}
+footer{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);padding-top:8px}
+.linkbtn{font:inherit;font-size:12px;background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+.msg.ok{color:var(--green)} .msg.err{color:#d0453a}
+
+/* ===== 3D motion layer ===== */
+body{background:radial-gradient(1200px 600px at 10% -10%,#fff4ea 0,transparent 60%),radial-gradient(900px 500px at 100% 0,#eaf7f1 0,transparent 55%),#fff;min-height:100vh;overflow-x:hidden}
+.blob{position:fixed;border-radius:50%;filter:blur(60px);opacity:.35;z-index:-1;pointer-events:none}
+.blob.a{width:340px;height:340px;background:#ffd2a6;left:-80px;top:30vh;animation:drift 18s ease-in-out infinite alternate}
+.blob.b{width:300px;height:300px;background:#bfe9d5;right:-60px;top:65vh;animation:drift 22s ease-in-out infinite alternate-reverse}
+@keyframes drift{to{transform:translate(60px,-80px) scale(1.15)}}
+.hero,.kpi,.card{background:#fff;border-color:#eef0f2;box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -8px rgba(16,24,40,.10),0 24px 48px -24px rgba(16,24,40,.12)}
+.persp{perspective:1100px}
+.reveal{opacity:0;transform:translateY(28px) rotateX(12deg);transform-origin:50% 100%;transition:opacity .7s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+.reveal.in{opacity:1;transform:none}
+/* hero layout with 3D donut */
+.hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}
+.hero-main{min-width:0}
+@media(max-width:720px){.hero{grid-template-columns:1fr}.donut-wrap{justify-self:center}}
+.donut-wrap{width:220px;perspective:700px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+.donut{position:relative;width:170px;height:170px;transform-style:preserve-3d;transform:rotateX(58deg) rotateZ(-18deg);animation:bob 6s ease-in-out infinite}
+@keyframes bob{50%{transform:rotateX(52deg) rotateZ(-14deg) translateZ(8px)}}
+.donut .ly{position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--dg) 0 var(--p),var(--do) var(--p) 100%);-webkit-mask:radial-gradient(circle,transparent 48%,#000 49%);mask:radial-gradient(circle,transparent 48%,#000 49%)}
+.donut .ly.side{--dg:#16754f;--do:#e9c7a2}
+.donut .ly.top{--dg:#2bb37c;--do:#fde6cf}
+.donut .shadow{position:absolute;inset:8%;border-radius:50%;background:radial-gradient(closest-side,rgba(16,24,40,.22),transparent);transform:translateZ(-30px);filter:blur(6px)}
+.donut-label{text-align:center;font-size:13px;color:var(--muted);line-height:1.3;margin-top:-28px}
+.donut-label b{font-size:18px;color:var(--ink);font-weight:600;margin-right:4px}
+/* 3D extruded bars */
+.b3{position:relative;height:14px;margin:8px 8px 0 0}
+.b3 .trk,.b3 .fill{position:absolute;left:0;top:0;bottom:0}
+.b3 .trk{right:0;background:#fde6cf}
+.b3 .fill{width:0;background:var(--green);transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.b3 .trk::before,.b3 .fill::before{content:'';position:absolute;left:0;right:0;top:-6px;height:6px;transform:skewX(-45deg);transform-origin:bottom left}
+.b3 .trk::after,.b3 .fill::after{content:'';position:absolute;top:0;right:-6px;width:6px;height:100%;transform:skewY(-45deg);transform-origin:top left}
+.b3 .trk::before{background:#fff1e3}.b3 .trk::after{background:#f3d2b0}
+.b3 .fill::before{background:#3fc28c}.b3 .fill::after{background:#167450}
+.b3.lg{height:22px;margin-top:14px}
+.b3.lg .trk::before,.b3.lg .fill::before{top:-10px;height:10px}
+.b3.lg .trk::after,.b3.lg .fill::after{right:-10px;width:10px}
+.grow .b3{margin-top:4px}
+/* tilt cards */
+.kpis{perspective:900px}
+.kpi{transform-style:preserve-3d;transition:transform .25s ease,box-shadow .25s ease;will-change:transform}
+.kpi:hover{box-shadow:0 2px 4px rgba(16,24,40,.05),0 18px 40px -12px rgba(16,24,40,.22)}
+.kpi .v{transform:translateZ(28px)}
+.kpi .n,.kpi .s{transform:translateZ(14px)}
+.kpi .ico{position:absolute;right:14px;top:14px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;transform:translateZ(36px);background:#f4f5f7;box-shadow:inset 0 -3px 0 rgba(0,0,0,.06),0 6px 12px -6px rgba(0,0,0,.2)}
+.kpi.g .ico{background:linear-gradient(160deg,#43c08e,#1f9d6b);box-shadow:inset 0 -3px 0 #167450,0 8px 16px -6px rgba(31,157,107,.5)}
+.kpi.o .ico{background:linear-gradient(160deg,#ffab5a,#f08a24);box-shadow:inset 0 -3px 0 #c76a10,0 8px 16px -6px rgba(240,138,36,.5)}
+.kpi .ico svg{width:18px;height:18px}
+.grow{transition:background .2s,transform .2s}
+.grow:hover{transform:translateX(4px)}
+tbody tr{animation:rowin .45s ease both}
+@keyframes rowin{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<i class="blob a"></i><i class="blob b"></i>
+<div class="wrap persp">
+  <header>
+    <div>
+      <div class="eyebrow">DDC Researcher Data System (DRDS) · สคร.10 อุบลราชธานี</div>
+      <h1>การลงทะเบียนนักวิจัยในระบบ DRDS</h1>
+    </div>
+    <select id="group" aria-label="เลือกกลุ่มงาน"></select>
+  </header>
+
+  <section class="hero reveal">
+    <div class="hero-main">
+    <div class="hero-top">
+      <div class="hero-label" id="heroLabel">บุคลากรสายวิชาการลงทะเบียนในระบบแล้ว</div>
+      <div class="hero-pct" id="heroPct">–</div>
+      <div class="hero-sub" id="heroSub"></div>
+    </div>
+    <div class="b3 lg" aria-hidden="true"><div class="trk"></div><div class="fill" id="heroBar"></div></div>
+    <div class="scale"><span>0%</span><span>เป้าหมาย 100%</span></div>
+    </div>
+    <div class="donut-wrap" aria-hidden="true">
+      <div class="donut" id="donut"><div class="shadow"></div></div>
+      <div class="donut-label"><b id="donutN">–</b>คน ลงทะเบียนแล้ว</div>
+    </div>
+  </section>
+
+  <section class="kpis">
+    <div class="kpi reveal"><i class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#7a828c" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3 3-4.6 5.5-4.6S13.7 16 14.5 19"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.6c2.3.1 4 1.5 4.8 4"/></svg></i><div class="n">บุคลากรสายวิชาการ</div><div class="v" id="kTotal">–</div><div class="s">ทั้งหมด</div></div>
+    <div class="kpi g reveal"><i class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4L19 7"/></svg></i><div class="n">ลงทะเบียนในระบบแล้ว</div><div class="v" id="kReg">–</div><div class="s" id="kRegP"></div></div>
+    <div class="kpi g reveal"><i class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M10 12h5M10 15.5h5"/></svg></i><div class="n">บันทึกผลงานวิจัยแล้ว</div><div class="v" id="kRec">–</div><div class="s" id="kRecP"></div></div>
+    <div class="kpi o reveal"><i class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/></svg></i><div class="n">ยังไม่ลงทะเบียน</div><div class="v" id="kNot">–</div><div class="s" id="kNotP"></div></div>
+  </section>
+
+  <section class="card reveal" id="groups">
+    <div class="card-h">
+      <h2>เปรียบเทียบรายกลุ่มงาน</h2>
+      <div class="legend"><span><i class="dot g"></i>ลงทะเบียนแล้ว</span><span><i class="dot o"></i>ยังไม่ลงทะเบียน</span></div>
+    </div>
+    <div class="grows" id="grows"></div>
+    <p class="hint">คลิกที่กลุ่มงานเพื่อดูเฉพาะกลุ่มนั้น คลิกอีกครั้งเพื่อกลับไปดูภาพรวม</p>
+  </section>
+
+  <section class="card reveal" id="people">
+    <div class="card-h"><h2>รายชื่อบุคลากรและสถานะ</h2></div>
+    <div class="tools">
+      <button class="chip on" data-st="all">ทั้งหมด</button>
+      <button class="chip" data-st="notreg">ยังไม่ลงทะเบียน</button>
+      <button class="chip" data-st="reg">ลงทะเบียนแล้ว</button>
+      <button class="chip" data-st="rec">บันทึกผลงานแล้ว</button>
+      <input type="search" id="q" placeholder="ค้นหาชื่อ หรือตำแหน่ง" aria-label="ค้นหา">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="tbox">
+      <table>
+        <thead><tr><th>ชื่อ - สกุล</th><th class="hide-sm">ตำแหน่ง</th><th class="hide-sm">กลุ่มงาน</th><th>ลงทะเบียน</th><th>บันทึกผลงาน</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <span>ข้อมูลจาก: <span id="src"></span></span>
+    <span class="msg" id="msg"></span>
+  </footer>
+</div>
+
+<script>
+const DEFAULT = [{"id": "P001", "group_order": 1, "group": "ผู้บริหาร (ผอ./รองฯ)", "unit": "ผู้อำนวยการสำนักงาน", "name": "นางจินตนา คำภักดี", "position": "ผู้อำนวยการสำนักงาน (ผู้อำนวยการ เฉพาะด้าน(แพทย์) สูง)", "level": "สูง", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P002", "group_order": 1, "group": "ผู้บริหาร (ผอ./รองฯ)", "unit": "ที่ปรึกษาสำนักงานป้องกันควบคุมโรคที่ 10 จังหวัดอุบลราชธานี", "name": "แพทย์หญิงบุศณี มุจรินทร์", "position": "นายแพทย์ (เวชกรรมป้องกัน)", "level": "เชี่ยวชาญ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P003", "group_order": 1, "group": "ผู้บริหาร (ผอ./รองฯ)", "unit": "รองผู้อำนวยการสำนักงาน", "name": "นางสาวอรทัย ศรีทองธรรม", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P004", "group_order": 1, "group": "ผู้บริหาร (ผอ./รองฯ)", "unit": "รองผู้อำนวยการสำนักงาน", "name": "นายเสถียร เชื้อลี", "position": "นักวิชาการสาธารณสุข (วางแผน)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P005", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานกฎหมาย", "name": "นายธงศักดิ์ ดอกจันทร์", "position": "นิติกร", "level": "ชำนาญการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P006", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานกฎหมาย", "name": "นายธีรภัทร์ ปรีชาพิริยะกุล", "position": "นิติกร", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P007", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานกฎหมาย", "name": "ว่าที่ร้อยตรีพลภัทร ศรีกุล", "position": "นิติกร", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P008", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานกฎหมาย", "name": "นางสาวเกศราภรณ์ เวระนะ", "position": "นิติกร", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P009", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานธุรการ", "name": "นางพิสมัย ทาบุดดา", "position": "นักจัดการงานทั่วไป", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P010", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานธุรการ", "name": "นางสาวเตือนใจ คำมูล", "position": "นักวิชาการสาธารณสุข", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P011", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานธุรการ", "name": "นางชญาน์นันท์ คำบุญ", "position": "นักจัดการงานทั่วไป", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P012", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเจ้าหน้าที่", "name": "นางวิมณรัตน์ พิมพ์ศิริ", "position": "นักจัดการงานทั่วไป", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P013", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเจ้าหน้าที่", "name": "นางสาวดรุณี ศรีอุบล", "position": "นักวิเคราะห์นโยบายและแผน", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P014", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเจ้าหน้าที่", "name": "นางสาวคณิตรา สุรำไพ", "position": "นักทรัพยากรบุคคล", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P015", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเงินและบัญชี", "name": "นางสาวปรียาภัทร์ สุขรักษา", "position": "นักวิชาการเงินและบัญชี", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P016", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเงินและบัญชี", "name": "นางสาวศิริขวัญ ส่งเสริม", "position": "นักวิชาการเงินและบัญชี", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P017", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเงินและบัญชี", "name": "นางสาวนันทกา สายทอง", "position": "นักวิชาการเงินและบัญชี", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P018", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเงินและบัญชี", "name": "นางสาวปุณณพร สุภักดิ์", "position": "นักวิชาการเงินและบัญชี", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P019", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานการเงินและบัญชี", "name": "นางสาวพิชามญชุ์ เถาว์ดี", "position": "นักวิชาการเงินและบัญชี", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P020", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานพัสดุ", "name": "นายวัชรพันธ์ ตั้งจิตไพศาล", "position": "นักจัดการงานทั่วไป", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P021", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานพัสดุ", "name": "นางณัฐวิภา รอสูงเนิน", "position": "นักวิชาการพัสดุ", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P022", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานพัสดุ", "name": "นางโรจนี ภูธรรมมา", "position": "นักจัดการงานทั่วไป", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P023", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานพัสดุ", "name": "นางสาวสุดารัตน์ พุ่มอิ่ม", "position": "นักวิชาการพัสดุ", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P024", "group_order": 2, "group": "กลุ่มบริหารทั่วไป", "unit": "งานพัสดุ", "name": "นางจันทร์เพ็ญ สุขอ้วน", "position": "นักวิชาการพัสดุ", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P025", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวพัชมณ เจริญนาวี", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P026", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวชนันรัตน์ ดวงบุปผา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P027", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวสำรวย ศรศรี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P028", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวพัชรี ทิพวรี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P029", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวธนาพร มานะดี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P030", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางวนิดา มากานนท์", "position": "นักทรัพยากรบุคคล", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P031", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นางสาวปนิตา อยู่สาโก", "position": "นักทรัพยากรบุคคล", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P032", "group_order": 3, "group": "กลุ่มพัฒนาองค์กร", "unit": "", "name": "นายกัมพล น้ำใจดี", "position": "นักวิเคราะห์นโยบายและแผน", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P033", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นายกนกศักดิ์ รักษาสัตย์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P034", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาววิภารัตน์ คำภา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P035", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวภัชราภรณ์ อาจกมล", "position": "นักวิเคราะห์นโยบายและแผน", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P036", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวเลอลักษณ์ กิตติโกสินท์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P037", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวพิกุลทอง เกียรติสมพร", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P038", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นายสฤษดิ์ กุคำอู", "position": "นักวิชาการคอมพิวเตอร์", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P039", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวศิริวรรณ อุทธา", "position": "นักวิเคราะห์นโยบายและแผน", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P040", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวเกศมณี ศรีหะ", "position": "นักวิเคราะห์นโยบายและแผน", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P041", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นางสาวจุฑาทิพย์ รอดภัย", "position": "นักวิชาการสาธารณสุข", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P042", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นายชนะชัย สายสมบัติ", "position": "นักวิชาการคอมพิวเตอร์", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P043", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นายณัฐวุฒิ สมร", "position": "นักวิชาการคอมพิวเตอร์", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P044", "group_order": 4, "group": "กลุ่มยุทธศาสตร์ฯ", "unit": "", "name": "นายอัครรัตน์ กอบเกื้อ", "position": "นักวิชาการคอมพิวเตอร์", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P045", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นางมุกดา งามวงศ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P046", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นายทศพงษ์ บุระมาน", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P047", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นางสาวจิราพร ดำพะธิก", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P048", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นางสาวอภิญญา จำปา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P049", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นางสาวอมลรุจี ชาญพิพัฒน์ไพบูลย์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P050", "group_order": 5, "group": "กลุ่มพัฒนานวัตกรรมและวิจัย", "unit": "", "name": "นางสาววิจิตรา จำมี", "position": "นักวิชาการสาธารณสุข", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P051", "group_order": 6, "group": "กลุ่มสื่อสารความเสี่ยง", "unit": "", "name": "นางสาวฤชุอร วงศ์ภิรมย์", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P052", "group_order": 6, "group": "กลุ่มสื่อสารความเสี่ยง", "unit": "", "name": "นางสาวศิริลักษณ์ หาญเชิงชัย", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P053", "group_order": 6, "group": "กลุ่มสื่อสารความเสี่ยง", "unit": "", "name": "นางสาวทิพวรรณ แก่นการ", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P054", "group_order": 6, "group": "กลุ่มสื่อสารความเสี่ยง", "unit": "", "name": "นายศุภวัจน์ ศรีสูงเนิน", "position": "นักวิชาการเผยแพร่", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P055", "group_order": 6, "group": "กลุ่มสื่อสารความเสี่ยง", "unit": "", "name": "นายฉัตรพงษ์ ศรีสูงเนิน", "position": "นักประชาสัมพันธ์", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P056", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางวิภาวี แสนวงษา", "position": "นักเทคนิคการแพทย์ (ส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P057", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวมนธิรา เงินประมวล", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P058", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางทิพวรรณ หมื่นพัน", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P059", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวโสภิตา โสพิลา", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P060", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นายปิยชาติ ก้อนคำใหญ่", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P061", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวสิรินา อินทร์สด", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P062", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวสุกัญญา สุทธิบริบาล", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P063", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวพรนิภา สายธนู", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P064", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสายฝน อารีเหลือ", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P065", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางฉัตชญา ธีระนุกูล", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P066", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นายธัชพล บุญถูก", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P067", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นายสุทธินันท์ ชาวสองคอน", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P068", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวสุดารัตน์ กิ่งผา", "position": "นักเทคนิคการแพทย์ (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P069", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวภัณฑิรา พลรักษ์", "position": "นักเทคนิคการแพทย์", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P070", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวรัชนิฎา คำวงศ์ปิน", "position": "นักเทคนิคการแพทย์", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P071", "group_order": 7, "group": "กลุ่มห้องปฏิบัติการ", "unit": "", "name": "นางสาวไอริน คำงาม", "position": "นักวิทยาศาสตร์การแพทย์", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P072", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางดวงเดือน พวงธรรม", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P073", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางสาวนงค์นุช สุรัตนวดี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P074", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางสาวหัสยา ไชยสิทธิ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P075", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นายวุฒิชัย สิงห์ซอม", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P076", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางสาวกิตติยา วงศาสุข", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P077", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางสาวนิรชา พิมพ์มหา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P078", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นางสาวกรชนก บรรดาศักดิ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P079", "group_order": 8, "group": "กลุ่มระบาดวิทยา", "unit": "", "name": "นายพรชัย ศรีเชียงสา", "position": "นักวิชาการสาธารณสุข", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P080", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาววิริยา ลิมปิทีปราการ", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P081", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวอมรรัตน์ จงตระการสมบัติ", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P082", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวสุธิดา แสนวงษ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P083", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวพิทยา วามะขันธ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P084", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาววัชราภรณ์ วงศ์คูณ", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P085", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาววิภาษนุช หาญบาง", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P086", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวมนศภรณ์ สมหมาย", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P087", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวมณีรัตน์ นริษทิ์ภูวพงษ์", "position": "เภสัชกร (เภสัชกรรมคลินิค)", "level": "ชำนาญการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P088", "group_order": 9, "group": "กลุ่มโรคติดต่อ", "unit": "", "name": "นางสาวภัทรามาศ ดาสันทัด", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P089", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางพรรณธิดา มูลประดับ", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P090", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางบุญญารัสมิ์ ธำรงวิไลเนตร", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P091", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นายพัชรพงษ์ วงษ์สามารถ", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P092", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางมณฑิรา เฉลิมเกียรติสกุล", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P093", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางชลภัสสรณ์ มืดภา", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P094", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "พันจ่าเอกไพศาล บัวลา", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P095", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางสาววีระยา ร่ำเรียนกิจ", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P096", "group_order": 10, "group": "กลุ่มโรคติดต่อเรื้อรัง", "unit": "", "name": "นางสาวนพนรินทร์ เยี่ยมสูงเนิน", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P097", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นายนัพวุฒิ ชื่นบาล", "position": "นักวิชาการสาธารณสุข (ด้านส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P098", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวจินทภา อันพิมพ์", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P099", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางวิไลวัล ศรีเชียงสา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P100", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวพลอยไพลิน เทพาฑีปกรณ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P101", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นายวชิรวิทย์ ลิมปวิทยากุล", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P102", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวเฌอมาวีร์ การะเกษ", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P103", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวบังอร ธุรี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P104", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวธนินพร ทิพยมงคลกุล", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P105", "group_order": 11, "group": "กลุ่มโรคไม่ติดต่อ", "unit": "", "name": "นางสาวสไบทิพย์ สุทธาคง", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P106", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นายนิพนธ์ แสนโคตร", "position": "นักวิชาการสาธารณสุข (วางแผน)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P107", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นายวีรยุทธ ประนัย", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P108", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวศิริประภา กอแก้ว", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P109", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวอัทธยาศัย บูระพิน", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P110", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวจุฬารัตน์ มานะดี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P111", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวนภากานต์ แดนดี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P112", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวสุภาวดี สังขะทิพย์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P113", "group_order": 12, "group": "กลุ่มโรคจากการประกอบอาชีพฯ", "unit": "", "name": "นางสาวอาทิตยา ศรีโชค", "position": "นักวิชาการสาธารณสุข", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P114", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นายชัยนันต์ บุตรกาล", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P115", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นายพลสินธุ์ นาควิเชียร", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P116", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นางวิชุตา โคสินธุ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P117", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นายณัฎฐพัชร ยอดผา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P118", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นางสาววิไลวัลย์ วงศ์ภา", "position": "นักกีฏวิทยา", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P119", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นายนราศักดิ์ บุญใหญ่", "position": "นักกีฏวิทยา", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P120", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "", "name": "นางสาวมณีรัตน์ โนนสังข์", "position": "นักกีฏวิทยา", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P121", "group_order": 13, "group": "กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1", "unit": "ศูนย์ควบคุมโรคติดต่อนำโดยแมลงที่ 10.1 จังหวัดอุบลราชธานี", "name": "นายจักรพงษ์ ฤทธิมหันต์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P122", "group_order": 14, "group": "ศตม.10.2", "unit": "", "name": "นางสาวศิริวรรณ คนยืน", "position": "นักวิชาการสาธารณสุข", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P123", "group_order": 14, "group": "ศตม.10.2", "unit": "", "name": "นางสาวประภาพรรณ มีธรรม", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P124", "group_order": 14, "group": "ศตม.10.2", "unit": "", "name": "นางสุวรรณา เกษศรี", "position": "นักกีฏวิทยา", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P125", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "", "name": "นายวรวุฒิ จันทิ", "position": "นักวิชาการสาธารณสุข(ส่งเสริมพัฒนา)", "level": "ชำนาญการพิเศษ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P126", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "", "name": "ว่าที่ร้อยตรี ภูมิพัฒน์ นริษทิ์ภูวพงษ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P127", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "", "name": "นางสาวแพรวพลอย บุญปั้น", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P128", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "", "name": "นางสาววรรณวนัช มณีวรรณ", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P129", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "", "name": "นางสาวโสภา แสงสุวรรณ", "position": "นักจัดการงานทั่วไป", "level": "ไม่ระบุ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P130", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศสะพานมิตรภาพ 2 จังหวัดมุกดาหาร", "name": "นางสาวเอื้อมขวัญ จันเต็ม", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P131", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศสะพานมิตรภาพ 2 จังหวัดมุกดาหาร", "name": "นางสาวขนิษฐา นวลไชยดี", "position": "นักวิชาการสาธารณสุข", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P132", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศสะพานมิตรภาพ 2 จังหวัดมุกดาหาร", "name": "นางสาวฤดีวรรณ คำดี", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P133", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศสะพานมิตรภาพ 2 จังหวัดมุกดาหาร", "name": "นางสาวนิตยา กานิล", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P134", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศสะพานมิตรภาพ 2 จังหวัดมุกดาหาร", "name": "นางสาวปนิดา อาจวิชัย", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P135", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศช่องเม็ก จังหวัดอุบลราชธานี", "name": "นายณัฐกฤตย์ เสงี่ยมศักดิ์", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "บันทึกแล้ว"}, {"id": "P136", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศช่องเม็ก จังหวัดอุบลราชธานี", "name": "นางสาวอรอุมา รักผล", "position": "นักวิชาการสาธารณสุข (ส่งเสริมพัฒนา)", "level": "ปฏิบัติการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P137", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศช่องเม็ก จังหวัดอุบลราชธานี", "name": "นายกฤศิน สาตรา", "position": "นักวิชาการสาธารณสุข (บริการทางวิชาการ)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P138", "group_order": 15, "group": "กลุ่มด่านควบคุมโรคฯ", "unit": "ด่านควบคุมโรคติดต่อระหว่างประเทศช่องเม็ก จังหวัดอุบลราชธานี", "name": "นางสาววิจิตรา กัญตา", "position": "นักวิชาการสาธารณสุข", "level": "ไม่ระบุ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P139", "group_order": 16, "group": "ศูนย์เวชศาสตร์ป้องกัน", "unit": "", "name": "นางสาววรวลัญช์ กัลยาณสิทธิ์", "position": "นายแพทย์ (เวชกรรมป้องกัน)", "level": "ชำนาญการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P140", "group_order": 16, "group": "ศูนย์เวชศาสตร์ป้องกัน", "unit": "", "name": "นายกรกฎ ภุชงคบดินทร", "position": "นายแพทย์ (เวชกรรมป้องกัน)", "level": "ชำนาญการ", "reg_status": "ลงทะเบียนแล้ว", "rec_status": "ยังไม่บันทึก"}, {"id": "P141", "group_order": 16, "group": "ศูนย์เวชศาสตร์ป้องกัน", "unit": "", "name": "นางสาวทนันพัทธ์ นาคนิกร", "position": "เภสัชกร (เภสัชกรรมคลินิค)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P142", "group_order": 16, "group": "ศูนย์เวชศาสตร์ป้องกัน", "unit": "", "name": "นางสาวกมลรัตน์ น้อยมนตรี", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ปฏิบัติการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}, {"id": "P143", "group_order": 16, "group": "ศูนย์เวชศาสตร์ป้องกัน", "unit": "", "name": "นางสาวพิชญ์ชญาณี ลำต้น", "position": "พยาบาลวิชาชีพ (การพยาบาล)", "level": "ชำนาญการ", "reg_status": "ยังไม่ลงทะเบียน", "rec_status": "ยังไม่บันทึก"}];
+const ALL = '';
+const S = { rows: DEFAULT, group: ALL, st: 'all', q: '', src: 'ไฟล์ Excel DRDS' };
+const isReg = (r) => r.reg_status === 'ลงทะเบียนแล้ว';
+const isRec = (r) => r.rec_status === 'บันทึกแล้ว';
+const pct = (a, b) => (b ? (100 * a) / b : 0);
+const p1 = (x) => (Math.round(x * 10) / 10).toLocaleString('th-TH', { minimumFractionDigits: x % 1 ? 1 : 0, maximumFractionDigits: 1 });
+const $ = (id) => document.getElementById(id);
+const txt = (el, s) => { el.textContent = s; return el; };
+const mk = (tag, cls, s) => { const e = document.createElement(tag); if (cls) e.className = cls; if (s != null) e.textContent = s; return e; };
+
+
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prev = new WeakMap();
+function countTo(el, to, build) {
+  const from = prev.has(el) ? prev.get(el) : 0; prev.set(el, to);
+  if (RM || from === to) { el.replaceChildren(...build(to)); return; }
+  const t0 = performance.now(), dur = 1100;
+  const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.replaceChildren(...build(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+let donutP = 0;
+function drawDonut(p) {
+  const d = $('donut'); d.querySelectorAll('.ly').forEach((n) => n.remove());
+  const N = 9;
+  for (let i = 0; i < N; i++) { const l = mk('div', 'ly ' + (i === N - 1 ? 'top' : 'side')); l.style.transform = `translateZ(${i * 2.2}px)`; d.append(l); }
+  const from = donutP; donutP = p; const t0 = performance.now();
+  const set = (v) => d.style.setProperty('--p', v + '%');
+  if (RM) { set(p); return; }
+  const step = (t) => { const k = Math.min(1, (t - t0) / 1200), e = 1 - Math.pow(1 - k, 3); set(from + (p - from) * e); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+// tilt
+document.querySelectorAll('.kpi').forEach((c) => {
+  c.addEventListener('pointermove', (e) => { if (RM) return; const r = c.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width - .5, y = (e.clientY - r.top) / r.height - .5; c.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg) translateZ(6px)`; });
+  c.addEventListener('pointerleave', () => { c.style.transform = ''; });
+});
+// reveal on scroll (staggered)
+const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => es.forEach((en) => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } }), { threshold: .12 }) : null;
+document.querySelectorAll('.reveal').forEach((el, i) => { el.style.transitionDelay = (Math.min(i, 5) * 90) + 'ms'; if (io) io.observe(el); else el.classList.add('in'); });
+
+function stats(rows) {
+  const total = rows.length, reg = rows.filter(isReg).length, rec = rows.filter(isRec).length;
+  return { total, reg, rec, not: total - reg };
+}
+function groups() {
+  const order = [], m = {};
+  S.rows.forEach((r) => { if (!m[r.group]) { m[r.group] = []; order.push(r.group); } m[r.group].push(r); });
+  return order.map((g) => ({ g, ...stats(m[g]) }));
+}
+
+function render() {
+  const scoped = S.group ? S.rows.filter((r) => r.group === S.group) : S.rows;
+  const s = stats(scoped);
+  const gs = groups();
+
+  // select
+  const sel = $('group');
+  sel.replaceChildren(new Option('ภาพรวมทั้งหน่วยงาน', ''), ...gs.map((x) => new Option(x.g, x.g)));
+  sel.value = S.group;
+
+  // hero
+  const rp = pct(s.reg, s.total);
+  txt($('heroLabel'), (S.group ? S.group + ' · ' : '') + 'บุคลากรสายวิชาการลงทะเบียนในระบบแล้ว');
+  countTo($('heroPct'), rp, (v) => [document.createTextNode(p1(v)), mk('small', null, '%')]);
+  drawDonut(rp); countTo($('donutN'), s.reg, (v) => [document.createTextNode(Math.round(v) + '/' + s.total)]);
+  const sub = $('heroSub'); sub.replaceChildren();
+  sub.append(mk('b', null, s.reg.toLocaleString()), ` จาก ${s.total.toLocaleString()} คน`);
+  if (s.not > 0) sub.append(' · เหลืออีก ', mk('span', 'left', s.not + ' คน'), ' จะครบ 100%');
+  else sub.append(' · ', mk('b', null, 'ครบ 100% แล้ว 🎉'));
+  requestAnimationFrame(() => requestAnimationFrame(() => { $('heroBar').style.width = rp + '%'; }));
+
+  // kpis
+  [['kTotal', s.total], ['kReg', s.reg], ['kRec', s.rec], ['kNot', s.not]].forEach(([id, n]) => countTo($(id), n, (v) => [document.createTextNode(Math.round(v)), mk('span', null, 'คน')]));
+  txt($('kRegP'), p1(rp) + '% ของบุคลากร');
+  txt($('kRecP'), p1(pct(s.rec, s.total)) + '% ของบุคลากร');
+  txt($('kNotP'), s.not ? 'ต้องติดตามให้ลงทะเบียน' : 'ไม่มีค้างแล้ว');
+
+  // groups
+  const box = $('grows'); box.replaceChildren();
+  gs.slice().sort((a, b) => pct(b.reg, b.total) - pct(a.reg, a.total) || b.total - a.total).forEach((x) => {
+    const row = mk('div', 'grow' + (x.g === S.group ? ' sel' : ''));
+    row.title = x.g;
+    const bar = mk('div', 'b3'); const fill = mk('div', 'fill'); bar.append(mk('div', 'trk'), fill); const w = pct(x.reg, x.total); requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = w + '%'; }));
+    const val = mk('div', 'val' + (x.reg === x.total ? ' full' : ''));
+    val.append(mk('b', null, p1(pct(x.reg, x.total)) + '%'), mk('small', null, `${x.reg}/${x.total} คน`));
+    row.append(mk('div', 'nm', x.g), bar, val, mk('div', 'rec', `บันทึกผลงานแล้ว ${x.rec} คน` + (x.not ? ` · ยังไม่ลงทะเบียน ${x.not} คน` : '')));
+    row.addEventListener('click', () => { S.group = S.group === x.g ? ALL : x.g; render(); });
+    box.append(row);
+  });
+
+  // people
+  let ps = scoped;
+  if (S.st === 'notreg') ps = ps.filter((r) => !isReg(r));
+  if (S.st === 'reg') ps = ps.filter(isReg);
+  if (S.st === 'rec') ps = ps.filter(isRec);
+  if (S.q) ps = ps.filter((r) => (r.name + ' ' + r.position + ' ' + r.group).toLowerCase().includes(S.q));
+  const tb = $('tbody'); tb.replaceChildren();
+  ps.forEach((r) => {
+    const tr = mk('tr');
+    const stc = (ok, yes, no, na) => { const td = mk('td'); td.append(mk('span', 'st ' + (ok ? 'ok' : na ? 'na' : 'no'), (ok ? '● ' + yes : na ? '○ ' + no : '● ' + no))); return td; };
+    tr.append(mk('td', null, r.name), mk('td', 'pos hide-sm', r.position + (r.level && r.level !== 'ไม่ระบุ' ? ' · ' + r.level : '')), mk('td', 'pos hide-sm', r.group),
+      stc(isReg(r), 'ลงทะเบียนแล้ว', 'ยังไม่ลงทะเบียน', false), stc(isRec(r), 'บันทึกแล้ว', 'ยังไม่บันทึก', !isReg(r)));
+    tb.append(tr);
+  });
+  txt($('count'), `แสดง ${ps.length} คน`);
+  txt($('src'), S.src);
+}
+
+$('group').addEventListener('change', (e) => { S.group = e.target.value; render(); });
+document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+  S.st = c.dataset.st; document.querySelectorAll('.chip').forEach((o) => o.classList.toggle('on', o === c)); render();
+}));
+$('q').addEventListener('input', (e) => { S.q = e.target.value.trim().toLowerCase(); render(); });
+
+// ---- Excel upload ----
+const GROUPS = {'ผอ-รองฯ':'ผู้บริหาร (ผอ./รองฯ)','บริหาร':'กลุ่มบริหารทั่วไป','องค์กร':'กลุ่มพัฒนาองค์กร','ยุทธ':'กลุ่มยุทธศาสตร์ฯ','วิจัย':'กลุ่มพัฒนานวัตกรรมและวิจัย','สื่อสาร':'กลุ่มสื่อสารความเสี่ยง','แลป':'กลุ่มห้องปฏิบัติการ','ระบาด':'กลุ่มระบาดวิทยา','โรคติดต่อ':'กลุ่มโรคติดต่อ','โรคติดต่อเรื้อรัง':'กลุ่มโรคติดต่อเรื้อรัง','โรคไม่ติดต่อ':'กลุ่มโรคไม่ติดต่อ','EnvOcc':'กลุ่มโรคจากการประกอบอาชีพฯ','ก.แมลง-ศตม.10.1':'กลุ่มโรคติดต่อนำโดยแมลง/ศตม.10.1','10.2':'ศตม.10.2','กลุ่มด่าน':'กลุ่มด่านควบคุมโรคฯ','ศ.เวช':'ศูนย์เวชศาสตร์ป้องกัน'};
+const clean = (s) => (s == null ? '' : String(s).replace(/\s+/g, ' ').trim());
+function parseWorkbook(wb) {
+  const out = [];
+  wb.SheetNames.forEach((sn) => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: true });
+    const head = (rows[0] || []).map(clean).join('|');
+    if (!/ชื่อ/.test(head) || !/ลงทะเบียน/.test(head)) return;
+    const group = GROUPS[sn.trim()] || sn.trim();
+    for (let i = 1; i < rows.length; i++) {
+      const [no, name, pos, lvl, reg, rec] = rows[i];
+      const nm = clean(name);
+      if (!(typeof no === 'number' || /^\d+$/.test(clean(no))) || !nm) continue;
+      const r = clean(reg), c = clean(rec);
+      out.push({ id: 'P' + (out.length + 1), group, name: nm, position: clean(pos), level: clean(lvl) || 'ไม่ระบุ',
+        reg_status: r && !r.includes('ยังไม่') ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน',
+        rec_status: c && !c.includes('ยังไม่') ? 'บันทึกแล้ว' : 'ยังไม่บันทึก' });
+    }
+  });
+  return out;
+}
+const msg = (t, cls) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); };
+S.src = 'ข้อมูลชุดสำรองในหน้าเว็บ';
+render();
+// Load the latest data from drds.xlsx in the same folder (GitHub Pages)
+(async () => {
+  try {
+    if (typeof XLSX === 'undefined') throw new Error('no xlsx');
+    const res = await fetch('drds.xlsx?v=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = parseWorkbook(XLSX.read(await res.arrayBuffer(), { type: 'array' }));
+    if (!rows.length) throw new Error('empty');
+    const lm = res.headers.get('last-modified');
+    const when = lm ? new Date(lm).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    Object.assign(S, { rows, src: 'ไฟล์ drds.xlsx' + (when ? ' · อัปเดต ' + when : '') });
+    render();
+  } catch (e) {
+    msg('อ่านไฟล์ drds.xlsx ไม่ได้ จึงแสดงข้อมูลชุดสำรอง', 'err');
+  }
+})();
+</script>
+</body>
+</html>
